@@ -22,11 +22,10 @@ app.use(session({
 }));
 
 const db = new Pool({
-  user: "postgres",
-  host: "localhost",
-  database: "nova",
-  password: "Liam1Lili",
-  port: 5432
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 function requireLogin(req, res, next) {
