@@ -22,7 +22,7 @@ app.use(session({
 }));
 
 const db = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.postgresql://nova_ae0u_user:er1F2YOloW8qQbXJbTUELoiDsUZovTRZ@dpg-d91d20rtqb8s73cmrl50-a.oregon-postgres.render.com/nova_ae0u,
   ssl: {
     rejectUnauthorized: false
   }
