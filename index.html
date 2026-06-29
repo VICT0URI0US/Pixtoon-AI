@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pixtoon AI</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin:0; background:#050505; color:white; font-family:Arial,sans-serif; overflow:hidden; }
+
+    #loginPage { max-width:420px; margin:90px auto; background:#120000; padding:28px; border-radius:18px; border:1px solid #7f1d1d; box-shadow:0 0 30px rgba(220,38,38,.18); }
+    #loginPage h1 { text-align:center; color:#ef4444; font-size:42px; }
+    input, button { font-size:15px; border-radius:10px; }
+    #loginPage input, #loginPage button { width:100%; padding:13px; margin:9px 0; }
+    input { background:#111; color:white; border:1px solid #7f1d1d; }
+    input:focus { outline:none; border-color:#ef4444; box-shadow:0 0 12px rgba(239,68,68,.35); }
+    button { background:#dc2626; color:white; border:none; font-weight:bold; cursor:pointer; transition:.2s; }
+    button:hover { background:#ef4444; transform:translateY(-1px); }
+    button:active { transform:scale(.97); }
+
+    #app { display:none; height:100vh; }
+    .sidebar { width:260px; background:#100000; border-right:1px solid #7f1d1d; padding:12px; transition:.25s; overflow-y:auto; box-shadow:2px 0 20px rgba(239,68,68,.08); }
+    .sidebar.hidden { margin-left:-260px; }
+    .brand { color:#ef4444; font-size:24px; font-weight:bold; margin-bottom:14px; }
+    .newChat { width:100%; padding:12px; margin-bottom:14px; }
+    .chatItem { padding:12px; margin:8px 0; background:#1a1a1a; border:1px solid #2a0000; border-radius:10px; cursor:pointer; transition:.2s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .chatItem:hover, .chatItem.active { border-color:#ef4444; background:#2a0505; transform:translateX(3px); }
+
+    .main { flex:1; display:flex; flex-direction:column; min-width:0; }
+    .topbar { height:55px; background:#0b0b0b; border-bottom:1px solid #7f1d1d; display:flex; align-items:center; gap:12px; padding:0 15px; box-shadow:0 3px 15px rgba(239,68,68,.15); }
+    .menu { font-size:25px; color:#ef4444; cursor:pointer; }
+    .title { font-size:18px; font-weight:bold; }
+    .logout { margin-left:auto; padding:8px 12px; }
+    #chat { flex:1; overflow-y:auto; padding:20px; }
+    .empty { text-align:center; color:#aaa; margin-top:120px; }
+    .msg { padding:12px 15px; margin:10px 0; border-radius:18px; max-width:75%; line-height:1.4; white-space:pre-wrap; animation:fadeUp .2s ease; }
+    .user { background:#dc2626; margin-left:auto; }
+    .bot { background:#1a1a1a; border:1px solid #7f1d1d; margin-right:auto; }
+    .inputBox { display:flex; gap:10px; padding:12px; border-top:1px solid #7f1d1d; background:#080808; }
+    #message { flex:1; padding:10px 12px; height:42px; }
+    .sendBtn { width:90px; }
+    #thinking { color:#ffb4b4; font-style:italic; animation:pulse 1s infinite; }
+
+    @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pulse { 0% { opacity:.4; } 50% { opacity:1; } 100% { opacity:.4; } }
+ .chatItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.chatItem span {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: transform 0.2s ease;
+}
+
+.deleteChat {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  color: #ff4d4d;
+  font-size: 18px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.chatItem:hover .deleteChat {
+  opacity: 1;
+}
+
+.chatItem:hover span {
+  transform: translateX(-6px);
+}
+ </style>
+</head>
+<body>
+
+<div id="loginPage">
+  <h1>Pixtoon AI</h1>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
+  <button onclick="signup()">Sign Up</button>
+  <button onclick="login()">Log In</button>
+  <p id="status"></p>
+</div>
+
+<div id="app">
+  <div id="sidebar" class="sidebar">
+    <div class="brand">Pixtoon AI</div>
+    <button class="newChat" onclick="createConversation()">+ New Chat</button>
+    <div id="conversationList"></div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="menu" onclick="toggleSidebar()">☰</div>
+      <div class="title">Pixxy</div>
+      <button class="logout" onclick="logout()">Logout</button>
+    </div>
+
+    <div id="chat">
+      <div class="empty">Create a new chat or choose one from the sidebar.</div>
+    </div>
+
+    <div class="inputBox">
+      <input id="message" placeholder="Message Pixxy...">
+      <button id="sendButton" class="sendBtn" onclick="handleSend()">Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentConversationId = null;
+let controller = null;
+let generating = false;
+
+async function signup() {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  const res = await fetch("/signup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ email, password })
+  });
+
+  const data = await res.json();
+  document.getElementById("status").textContent = data.message;
+}
+
+async function login() {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  const res = await fetch("/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ email, password })
+  });
+
+  const data = await res.json();
+  document.getElementById("status").textContent = data.message;
+
+  if (data.success) {
+    document.getElementById("loginPage").style.display = "none";
+    document.getElementById("app").style.display = "flex";
+    await loadConversations();
+  }
+}
+
+async function logout() {
+  await fetch("/logout", { method: "POST", credentials: "include" });
+  location.reload();
+}
+
+function toggleSidebar() {
+  document.getElementById("sidebar").classList.toggle("hidden");
+}
+
+async function loadConversations() {
+  const res = await fetch("/conversations", { credentials: "include" });
+  const data = await res.json();
+  const list = document.getElementById("conversationList");
+
+  list.innerHTML = "";
+
+  data.conversations.forEach(chat => {
+    const div = document.createElement("div");
+    div.className = "chatItem";
+
+    const title = document.createElement("span");
+    title.textContent = chat.title;
+
+    const x = document.createElement("button");
+    x.textContent = "×";
+    x.className = "deleteChat";
+    x.onclick = async (e) => {
+      e.stopPropagation();
+
+      await fetch(`/conversations/${chat.id}`, {
+        method: "DELETE",
+        credentials: "include"
+      });
+
+      if (currentConversationId === chat.id) {
+        currentConversationId = null;
+        document.getElementById("chat").innerHTML =
+          `<div class="empty">Create a new chat or choose one from the sidebar.</div>`;
+      }
+
+      await loadConversations();
+    };
+
+    div.onclick = () => openConversation(chat.id, div);
+    div.appendChild(title);
+    div.appendChild(x);
+    list.appendChild(div);
+  });
+}
+
+async function createConversation() {
+  const res = await fetch("/conversations", {
+    method: "POST",
+    credentials: "include"
+  });
+
+  const data = await res.json();
+  if (!data.conversation) return;
+
+  currentConversationId = data.conversation.id;
+  await loadConversations();
+  await openConversation(currentConversationId);
+}
+
+async function openConversation(id) {
+  currentConversationId = id;
+  await loadConversations();
+
+  const res = await fetch(`/conversations/${id}/messages`, {
+    credentials: "include"
+  });
+
+  const data = await res.json();
+  const chat = document.getElementById("chat");
+  chat.innerHTML = "";
+
+  if (!data.messages || data.messages.length === 0) {
+    chat.innerHTML = `<div class="empty">New chat started. Say hi to Pixxy.</div>`;
+    return;
+  }
+
+  data.messages.forEach(msg => {
+    const cls = msg.role === "user" ? "user" : "bot";
+    const name = msg.role === "user" ? "You" : "Pixxy";
+    chat.innerHTML += `<div class="msg ${cls}"><b>${name}:</b><br>${escapeHtml(msg.content)}</div>`;
+  });
+
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function handleSend() {
+  if (generating && controller) {
+    controller.abort();
+
+    generating = false;
+    controller = null;
+
+    document.getElementById("sendButton").textContent = "Send";
+    document.getElementById("thinking")?.remove();
+
+    return;
+  }
+
+  send();
+}
+async function send() {
+  const input = document.getElementById("message");
+  const chat = document.getElementById("chat");
+  const text = input.value.trim();
+
+  if (!text) return;
+
+  if (!currentConversationId) {
+    await createConversation();
+  }
+
+  chat.querySelector(".empty")?.remove();
+  chat.innerHTML += `<div class="msg user"><b>You:</b><br>${escapeHtml(text)}</div>`;
+  input.value = "";
+  chat.innerHTML += `<div class="msg bot" id="thinking">Pixxy is thinking...</div>`;
+  chat.scrollTop = chat.scrollHeight;
+
+controller = new AbortController();
+generating = true;
+
+const sendBtn = document.getElementById("sendButton");
+sendBtn.textContent = "Stop";
+
+try {
+  const res = await fetch("/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    signal: controller.signal,
+    body: JSON.stringify({
+      message: text,
+      conversationId: currentConversationId
+    })
+  });
+
+  const data = await res.json();
+
+  document.getElementById("thinking")?.remove();
+  const botDiv = document.createElement("div");
+botDiv.className = "msg bot";
+botDiv.innerHTML = "<b>Pixxy:</b><br>";
+
+chat.appendChild(botDiv);
+
+const words = data.reply.split(" ");
+
+for (const word of words) {
+    botDiv.innerHTML += escapeHtml(word) + " ";
+    chat.scrollTop = chat.scrollHeight;
+    await new Promise(resolve => setTimeout(resolve, 25));
+}
+
+  await loadConversations();
+  chat.scrollTop = chat.scrollHeight;
+
+} catch (err) {
+  document.getElementById("thinking")?.remove();
+  if (err.name !== "AbortError") {
+    chat.innerHTML += `<div class="msg bot"><b>Pixxy:</b><br>Something went wrong.</div>`;
+  }
+}
+
+generating = false;
+controller = null;
+sendBtn.textContent = "Send";
+}
+
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+document.getElementById("message").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") send();
+});
+</script>
+
+</body>
+</html>
